@@ -92,9 +92,6 @@ AddEventHandler('chat:addTemplate', function(id, html)
     SendNUIMessage({type = 'ON_TEMPLATE_ADD', template = {id = id, html = html}})
 end)
 
--- AddEventHandler('chat:clear',
---                 function(name) SendNUIMessage({type = 'ON_CLEAR'}) end)
-
 RegisterNUICallback('chatResult', function(data, cb)
     chatInputActive = false
     SetNuiFocus(false, false)
@@ -110,10 +107,15 @@ RegisterNUICallback('chatResult', function(data, cb)
     cb('ok')
 end)
 
+-- =====================================================
+-- BUG FIX #1: chat:clear usava action="clear" em vez de type='ON_CLEAR'
+-- O App.js despacha mensagens por item.type, por isso o handler ON_CLEAR
+-- nunca era chamado com a versão anterior.
+-- =====================================================
 RegisterNetEvent('chat:clear')
-AddEventHandler("chat:clear", function(data)
+AddEventHandler("chat:clear", function()
     SendNUIMessage({
-        action = "clear"
+        type = 'ON_CLEAR'
     })
 end)
 
@@ -194,9 +196,19 @@ RegisterNUICallback('openSettings', function(data, cb)
     cb('ok')
 end)
 
--- NUI Callback: o painel de settings foi fechado — liberta o foco do NUI
+-- =====================================================
+-- BUG FIX #2: settingsClosed verificava sempre false, false
+-- o que removia o foco do NUI mesmo quando o chat input ainda
+-- estava ativo. Agora preserva o foco correto conforme o estado.
+-- =====================================================
 RegisterNUICallback('settingsClosed', function(data, cb)
-    SetNuiFocus(false, false)
+    if chatInputActive then
+        -- Chat ainda aberto: mantém foco de teclado mas sem cursor de rato
+        SetNuiFocus(true, false)
+    else
+        -- Chat fechado: liberta o foco completamente
+        SetNuiFocus(false, false)
+    end
     cb('ok')
 end)
 
