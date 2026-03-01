@@ -256,7 +256,7 @@ window.APP = {
       this.colorPickerState.open   = false;
       this.colorPickerState.target = null;
       this.showSettings            = false;
-      // Liberta o foco do NUI (Lua trata disso)
+      // Notifica o Lua para gerir o foco corretamente (Bug Fix #2)
       post('http://ef-chat/settingsClosed', JSON.stringify({}));
     },
 
@@ -710,8 +710,16 @@ window.APP = {
       if (topSuggestion) this.message = topSuggestion.name;
     },
 
+    // ─────────────────────────────────────────────────────────────────────
+    // BUG FIX #3 — switchSuggestionDown
+    // Versão anterior: (idx + 1) % currentSuggestions.length
+    // Se a lista estiver vazia (length === 0), o módulo de 0 devolve NaN,
+    // o que corrompe selectedSuggestionIdx para toda a sessão.
+    // Correção: retornar imediatamente se a lista estiver vazia.
+    // ─────────────────────────────────────────────────────────────────────
     switchSuggestionDown() {
-      if (this.message === '') return true;
+      if (this.message === '') return;
+
       const slashMessage      = this.message;
       const suggestionList    = this.backingSuggestions.filter(
         (el) => this.removedSuggestions.indexOf(el.name) <= -1
@@ -730,11 +738,21 @@ window.APP = {
         return true;
       }).slice(0, CONFIG.suggestionLimit);
 
-      this.selectedSuggestionIdx = (this.selectedSuggestionIdx + 1) % (currentSuggestions.length);
+      // CORRIGIDO: evitar divisão por zero que causava NaN
+      if (currentSuggestions.length === 0) return;
+
+      this.selectedSuggestionIdx = (this.selectedSuggestionIdx + 1) % currentSuggestions.length;
     },
 
+    // ─────────────────────────────────────────────────────────────────────
+    // BUG FIX #3 — switchSuggestionUp
+    // Mesma correção: retornar imediatamente se a lista estiver vazia,
+    // evitando que prevSuggestion fique -1 e selectedSuggestionIdx
+    // seja atribuído como 0 - 1 = -1 (inválido para o v-for).
+    // ─────────────────────────────────────────────────────────────────────
     switchSuggestionUp() {
-      if (this.message === '') return true;
+      if (this.message === '') return;
+
       const slashMessage      = this.message;
       const suggestionList    = this.backingSuggestions.filter(
         (el) => this.removedSuggestions.indexOf(el.name) <= -1
@@ -752,10 +770,12 @@ window.APP = {
         }
         return true;
       }).slice(0, CONFIG.suggestionLimit);
+
+      // CORRIGIDO: evitar índice negativo quando a lista está vazia
+      if (currentSuggestions.length === 0) return;
 
       let prevSuggestion = this.selectedSuggestionIdx - 1;
       if (prevSuggestion < 0) prevSuggestion = currentSuggestions.length - 1;
-      if (prevSuggestion < 0) prevSuggestion = 0;
       this.selectedSuggestionIdx = prevSuggestion;
     },
   },
